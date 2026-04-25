@@ -100,9 +100,15 @@ class SubscriptionController {
             return res.status(400).json({ mensaje: "ID inválido" });
         }
 
-        const sub = await db.collection("subscriptions").findOne({
-            _id: new ObjectId(id)
-        });
+
+        await db.collection("subscriptions").updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    status: "inactive"
+                }
+            }
+        );
 
         res.json({ mensaje: "Suscripción cancelada" });
     }

@@ -8,8 +8,12 @@ Aplicación construida con **Tyscript** + **MongoDB**, expuesta en el puerto **3
 Asegúrate de configurar las siguientes variables:
 
 ```
-MONGODB=mongodb//unsername:password@localhost:27017
-DB_NAME=anteikuDB
+MONGO_USERNAME=
+MONGO_PASSWORD=
+MONGO_DB_NAME=
+MONGO_DB_PORT=
+EXPRESS_DB_PORT=
+BACKEND_PORT=
 ````
 
 ---

@@ -10,7 +10,8 @@ class DataBase {
     private db!: Db;
 
     private constructor() {
-        this.client = new MongoClient(process.env.MONGO_URI!);
+        this.client = new MongoClient(`mongodb://${process.env.MONGO_USERNAME!}:${process.env.MONGO_PASSWORD}@localhost:${process.env.MONGO_DB_PORT}`
+        );
     }
 
     public static async getInstance(): Promise<DataBase> {
@@ -24,7 +25,7 @@ class DataBase {
 
     private async connect() {
         await this.client.connect();
-        this.db = this.client.db(process.env.DB_NAME);
+        this.db = this.client.db(process.env.MONGO_DB_NAME);
         console.log("MongoDB conectado");
     }
 
