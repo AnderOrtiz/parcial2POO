@@ -3,11 +3,11 @@ services:
   db:
     container_name: ${MONGO_DB_NAME}
     image: mongo:8.2.7
+    restart: unless-stopped
     volumes: 
       - anteiku:/data/db
     ports:
       - 27017:27017
-    restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
@@ -23,7 +23,7 @@ services:
       ME_CONFIG_MONGODB_SERVER: ${MONGO_DB_NAME}
     ports:
       - 8080:8081
-    restart: always
+    restart: unless-stopped
 
 
 volumes:
