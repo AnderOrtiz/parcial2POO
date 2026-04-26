@@ -1,4 +1,3 @@
-// controllers/subscriptionController.ts
 import type { Request, Response } from "express";
 import DataBase from "../config/database";
 import Subscription from "../models/Subscription";
@@ -6,37 +5,34 @@ import { ObjectId } from "mongodb";
 
 class SubscriptionController {
 
-    // 🆕 Crear suscripción
     public async crear(req: Request, res: Response) {
         const { userId, plan } = req.body;
 
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setDate(startDate.getDate() + 30); // mensual
-
-        const subscription = new Subscription(
-            userId,
-            plan,
-            startDate,
-            endDate
-        );
-
         const db = (await DataBase.getInstance()).getDb();
 
-        await db.collection("subscriptions").insertOne(
-            subscription.getData()
-        );
+        const existing = await db.collection("subscriptions").findOne({ userId });
+        if (existing) {
+            return res.status(409).json({ mensaje: "El usuario ya tiene una suscripción" });
+        }
+
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(startDate.getDate() + 30);
+        const daysRemaining = 30;
+
+        const subscription = new Subscription(userId, plan, startDate, endDate, daysRemaining);
+
+        await db.collection("subscriptions").insertOne(subscription.getData());
 
         res.json({ mensaje: "Suscripción creada" });
     }
 
-    // 🔍 Obtener por usuario
     public async obtenerPorUsuario(req: Request, res: Response) {
         const { userId } = req.params;
 
         const db = (await DataBase.getInstance()).getDb();
 
-        const sub = await db.collection("subscriptions").findOne({ userId });
+        const sub = await db.collection("subscriptions").findOne({ userId: Number(userId) });
 
         if (!sub) {
             return res.status(404).json({ mensaje: "No tiene suscripción" });
@@ -45,7 +41,6 @@ class SubscriptionController {
         res.json(sub);
     }
 
-    // 🔄 Renovar
     public async renovar(req: Request, res: Response) {
         const { id } = req.params;
 
@@ -55,34 +50,35 @@ class SubscriptionController {
             return res.status(400).json({ mensaje: "ID inválido" });
         }
 
-        const sub = await db.collection("subscriptions").findOne({
-            _id: new ObjectId(id)
-        });
-
+        const sub = await db.collection("subscriptions").findOne({ _id: new ObjectId(id) });
 
         if (!sub) {
             return res.status(404).json({ mensaje: "No encontrada" });
         }
 
         const now = new Date();
-        let newEndDate = new Date();
+        const isStillActive = sub.status === "active" && sub.endDate > now;
 
-        if (sub.endDate > now) {
-            // aún activa → extender
-            newEndDate = new Date(sub.endDate);
-        } else {
-            // vencida → reiniciar
-            newEndDate = now;
+        if (isStillActive) {
+            return res.status(409).json({ mensaje: "La suscripción ya está activa y vigente" });
         }
 
-        newEndDate.setDate(newEndDate.getDate() + 30);
+        const wasInactive = sub.status === "inactive";
+        const daysToRestore: number = wasInactive
+            ? (sub.daysRemainingBeforeCancel ?? 30)
+            : 30;
+
+        const newEndDate = new Date(now);
+        newEndDate.setDate(newEndDate.getDate() + daysToRestore);
 
         await db.collection("subscriptions").updateOne(
             { _id: new ObjectId(id) },
             {
                 $set: {
                     endDate: newEndDate,
-                    status: "active"
+                    status: "active",
+                    daysRemaining: daysToRestore,
+                    daysRemainingBeforeCancel: 0
                 }
             }
         );
@@ -90,22 +86,36 @@ class SubscriptionController {
         res.json({ mensaje: "Suscripción renovada" });
     }
 
-    // ❌ Cancelar
     public async cancelar(req: Request, res: Response) {
-        const db = (await DataBase.getInstance()).getDb();
-
         const { id } = req.params;
+
+        const db = (await DataBase.getInstance()).getDb();
 
         if (!id || Array.isArray(id)) {
             return res.status(400).json({ mensaje: "ID inválido" });
         }
 
+        const sub = await db.collection("subscriptions").findOne({ _id: new ObjectId(id) });
+
+        if (!sub) {
+            return res.status(404).json({ mensaje: "No encontrada" });
+        }
+
+        if (sub.status === "inactive") {
+            return res.status(409).json({ mensaje: "La suscripción ya está cancelada" });
+        }
+
+        const realDaysRemaining = Math.max(0, Math.ceil(
+            (new Date(sub.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        ));
 
         await db.collection("subscriptions").updateOne(
             { _id: new ObjectId(id) },
             {
                 $set: {
-                    status: "inactive"
+                    status: "inactive",
+                    daysRemainingBeforeCancel: realDaysRemaining,
+                    daysRemaining: 0
                 }
             }
         );
@@ -113,19 +123,16 @@ class SubscriptionController {
         res.json({ mensaje: "Suscripción cancelada" });
     }
 
-    // 📅 Estado (aquí validas vencimiento)
     public async estado(req: Request, res: Response) {
-        const db = (await DataBase.getInstance()).getDb();
-
         const { id } = req.params;
+
+        const db = (await DataBase.getInstance()).getDb();
 
         if (!id || Array.isArray(id)) {
             return res.status(400).json({ mensaje: "ID inválido" });
         }
 
-        const sub = await db.collection("subscriptions").findOne({
-            _id: new ObjectId(id)
-        });
+        const sub = await db.collection("subscriptions").findOne({ _id: new ObjectId(id) });
 
         if (!sub) {
             return res.status(404).json({ mensaje: "No encontrada" });
@@ -135,8 +142,7 @@ class SubscriptionController {
         const isActive = sub.endDate > now && sub.status === "active";
 
         const daysRemaining = Math.ceil(
-            (new Date(sub.endDate).getTime() - now.getTime()) /
-            (1000 * 60 * 60 * 24)
+            (new Date(sub.endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
         );
 
         res.json({
@@ -146,7 +152,6 @@ class SubscriptionController {
         });
     }
 
-    // 🔐 Validar acceso (clave)
     public async validar(req: Request, res: Response) {
         const { userId } = req.params;
 
@@ -158,9 +163,7 @@ class SubscriptionController {
             return res.json({ hasAccess: false });
         }
 
-        const hasAccess =
-            sub.status === "active" &&
-            new Date(sub.endDate) > new Date();
+        const hasAccess = sub.status === "active" && new Date(sub.endDate) > new Date();
 
         res.json({ hasAccess });
     }

@@ -5,6 +5,7 @@ class Subscription {
         private plan: string,
         private startDate: Date,
         private endDate: Date,
+        private daysRemaining: number,
         private status: string = "active"
     ) {}
 
@@ -14,7 +15,8 @@ class Subscription {
             plan: this.plan,
             startDate: this.startDate,
             endDate: this.endDate,
-            status: this.status
+            status: this.status,
+            daysRemaining: this.daysRemaining
         };
     }
 }
