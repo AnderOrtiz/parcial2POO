@@ -1,4 +1,3 @@
-// config/database.ts
 import { MongoClient, Db } from "mongodb";
 import dotenv from "dotenv";
 

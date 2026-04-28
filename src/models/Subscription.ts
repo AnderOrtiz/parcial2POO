@@ -1,4 +1,3 @@
-// models/Subscription.ts
 class Subscription {
     constructor(
         private name: string,

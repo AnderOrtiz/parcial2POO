@@ -1,4 +1,3 @@
-// controllers/subscriptionController.ts
 import type { Request, Response } from "express";
 import DataBase from "../config/database";
 import Subscription from "../models/Subscription";
@@ -179,6 +178,26 @@ class SubscriptionController {
         }
 
         res.json(results);
+    }
+
+    public async eliminar(req: Request, res: Response) {
+        const { id } = req.params;
+
+        if (!id || Array.isArray(id)) {
+            return res.status(400).json({ mensaje: "ID inválido" });
+        }
+
+        const db = (await DataBase.getInstance()).getDb();
+
+        const result = await db.collection("users").deleteOne({
+            _id: new ObjectId(id as string)
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ mensaje: "Usuario no encontrado" });
+        }
+
+        res.json({ mensaje: "Usuario eliminado correctamente" });
     }
 }
 
