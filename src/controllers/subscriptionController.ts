@@ -1,3 +1,4 @@
+// controllers/subscriptionController.ts
 import type { Request, Response } from "express";
 import DataBase from "../config/database";
 import Subscription from "../models/Subscription";
@@ -6,51 +7,31 @@ import { ObjectId } from "mongodb";
 class SubscriptionController {
 
     public async crear(req: Request, res: Response) {
-        const { userId, username, plan } = req.body;
+        const { name, lastname } = req.body;
 
         const db = (await DataBase.getInstance()).getDb();
-
-        const existing = await db.collection("subscriptions").findOne({ userId });
-        if (existing) {
-            return res.status(409).json({ mensaje: "El usuario ya tiene una suscripción" });
-        }
 
         const startDate = new Date();
         const endDate = new Date();
         endDate.setDate(startDate.getDate() + 30);
         const daysRemaining = 30;
 
-        const subscription = new Subscription(userId, plan, startDate, endDate, daysRemaining);
-
-        await db.collection("subscriptions").insertOne(subscription.getData());
+        const subscription = new Subscription(name, lastname, startDate, endDate, daysRemaining);
+        await db.collection("users").insertOne(subscription.getData());
 
         res.json({ mensaje: "Suscripción creada" });
-    }
-
-    public async obtenerPorUsuario(req: Request, res: Response) {
-        const { userId } = req.params;
-
-        const db = (await DataBase.getInstance()).getDb();
-
-        const sub = await db.collection("subscriptions").findOne({ userId: Number(userId) });
-
-        if (!sub) {
-            return res.status(404).json({ mensaje: "No tiene suscripción" });
-        }
-
-        res.json(sub);
     }
 
     public async renovar(req: Request, res: Response) {
         const { id } = req.params;
 
-        const db = (await DataBase.getInstance()).getDb();
-
         if (!id || Array.isArray(id)) {
             return res.status(400).json({ mensaje: "ID inválido" });
         }
 
-        const sub = await db.collection("subscriptions").findOne({ _id: new ObjectId(id) });
+        const db = (await DataBase.getInstance()).getDb();
+
+        const sub = await db.collection("users").findOne({ _id: new ObjectId(id as string) });
 
         if (!sub) {
             return res.status(404).json({ mensaje: "No encontrada" });
@@ -71,8 +52,8 @@ class SubscriptionController {
         const newEndDate = new Date(now);
         newEndDate.setDate(newEndDate.getDate() + daysToRestore);
 
-        await db.collection("subscriptions").updateOne(
-            { _id: new ObjectId(id) },
+        await db.collection("users").updateOne(
+            { _id: new ObjectId(id as string) },
             {
                 $set: {
                     endDate: newEndDate,
@@ -89,13 +70,13 @@ class SubscriptionController {
     public async cancelar(req: Request, res: Response) {
         const { id } = req.params;
 
-        const db = (await DataBase.getInstance()).getDb();
-
         if (!id || Array.isArray(id)) {
             return res.status(400).json({ mensaje: "ID inválido" });
         }
 
-        const sub = await db.collection("subscriptions").findOne({ _id: new ObjectId(id) });
+        const db = (await DataBase.getInstance()).getDb();
+
+        const sub = await db.collection("users").findOne({ _id: new ObjectId(id as string) });
 
         if (!sub) {
             return res.status(404).json({ mensaje: "No encontrada" });
@@ -109,8 +90,8 @@ class SubscriptionController {
             (new Date(sub.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
         ));
 
-        await db.collection("subscriptions").updateOne(
-            { _id: new ObjectId(id) },
+        await db.collection("users").updateOne(
+            { _id: new ObjectId(id as string) },
             {
                 $set: {
                     status: "inactive",
@@ -126,13 +107,13 @@ class SubscriptionController {
     public async estado(req: Request, res: Response) {
         const { id } = req.params;
 
-        const db = (await DataBase.getInstance()).getDb();
-
         if (!id || Array.isArray(id)) {
             return res.status(400).json({ mensaje: "ID inválido" });
         }
 
-        const sub = await db.collection("subscriptions").findOne({ _id: new ObjectId(id) });
+        const db = (await DataBase.getInstance()).getDb();
+
+        const sub = await db.collection("users").findOne({ _id: new ObjectId(id as string) });
 
         if (!sub) {
             return res.status(404).json({ mensaje: "No encontrada" });
@@ -153,11 +134,15 @@ class SubscriptionController {
     }
 
     public async validar(req: Request, res: Response) {
-        const { userId } = req.params;
+        const { id } = req.params;
+
+        if (!id || Array.isArray(id)) {
+            return res.status(400).json({ mensaje: "ID inválido" });
+        }
 
         const db = (await DataBase.getInstance()).getDb();
 
-        const sub: any = await db.collection("subscriptions").findOne({ userId });
+        const sub: any = await db.collection("users").findOne({ _id: new ObjectId(id as string) });
 
         if (!sub) {
             return res.json({ hasAccess: false });
@@ -166,6 +151,28 @@ class SubscriptionController {
         const hasAccess = sub.status === "active" && new Date(sub.endDate) > new Date();
 
         res.json({ hasAccess });
+    }
+
+    public async buscar(req: Request, res: Response) {
+        const { name, lastname } = req.query;
+
+        if (!name && !lastname) {
+            return res.status(400).json({ mensaje: "Debe proporcionar name o lastname como parámetro de búsqueda" });
+        }
+
+        const db = (await DataBase.getInstance()).getDb();
+
+        const query: Record<string, any> = {};
+        if (name) query.name = { $regex: name as string, $options: "i" };
+        if (lastname) query.lastname = { $regex: lastname as string, $options: "i" };
+
+        const results = await db.collection("users").find(query).toArray();
+
+        if (results.length === 0) {
+            return res.status(404).json({ mensaje: "No se encontraron usuarios" });
+        }
+
+        res.json(results);
     }
 }
 
