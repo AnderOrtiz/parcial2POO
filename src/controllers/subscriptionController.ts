@@ -6,7 +6,7 @@ import { ObjectId } from "mongodb";
 class SubscriptionController {
 
     public async crear(req: Request, res: Response) {
-        const { userId, plan } = req.body;
+        const { userId, username, plan } = req.body;
 
         const db = (await DataBase.getInstance()).getDb();
 
