@@ -138,25 +138,6 @@ class SubscriptionController {
         });
     }
 
-    public async validar(req: Request, res: Response) {
-        const { id } = req.params;
-
-        if (!id || Array.isArray(id)) {
-            return res.status(400).json({ mensaje: "ID inválido" });
-        }
-
-        const db = (await DataBase.getInstance()).getDb();
-
-        const sub: any = await db.collection("users").findOne({ _id: new ObjectId(id as string) });
-
-        if (!sub) {
-            return res.json({ hasAccess: false });
-        }
-
-        const hasAccess = sub.status === "active" && new Date(sub.endDate) > new Date();
-
-        res.json({ hasAccess });
-    }
 
     public async buscar(req: Request, res: Response) {
         const { name, lastname } = req.query;
@@ -179,6 +160,7 @@ class SubscriptionController {
 
         res.json(results);
     }
+
 
     public async eliminar(req: Request, res: Response) {
         const { id } = req.params;

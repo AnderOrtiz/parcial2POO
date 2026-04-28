@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import subscriptionRouter from "./routers/subscriptionRouter";
+import { startJobs } from "./jobs/expireSubscriptions";
 
 dotenv.config();
 
@@ -35,4 +36,5 @@ const PORT = process.env.BACKEND_PORT;
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
+    startJobs();
 });
