@@ -120,16 +120,22 @@ class SubscriptionController {
         }
 
         const now = new Date();
-        const isActive = sub.endDate > now && sub.status === "active";
 
-        const daysRemaining = Math.ceil(
-            (new Date(sub.endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        );
+        const isActive = sub.status === "active" && new Date(sub.endDate) > now;
+
+        let daysRemaining = 0;
+
+        if (sub.status === "active") {
+            daysRemaining = Math.ceil(
+                (new Date(sub.endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+            );
+            daysRemaining = daysRemaining > 0 ? daysRemaining : 0;
+        }
 
         res.json({
             isActive,
             expiresAt: sub.endDate,
-            daysRemaining: daysRemaining > 0 ? daysRemaining : 0
+            daysRemaining
         });
     }
 

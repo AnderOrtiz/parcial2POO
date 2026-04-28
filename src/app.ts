@@ -17,7 +17,7 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 // 🔹 Rutas de suscripciones
-app.use("/subscriptions", subscriptionRouter);
+app.use("/user", subscriptionRouter);
 
 /**
  * 📌 ENDPOINTS DISPONIBLES:
